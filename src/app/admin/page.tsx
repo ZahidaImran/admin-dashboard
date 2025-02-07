@@ -1,114 +1,58 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { client } from "@/sanity/lib/client";
-import Swal from "sweetalert2";
-import ProtectedRoute from "../components/protectedRoutes";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-interface Order {
-  _id: string;
-  fullName: string;
-  email: string;
-  phone: number;
-  address: string;
-  city: string;
-  zipCode: number;
-  totalPrice: number;
-  discountedPrice: number;
-  orderDate: string;
-  orderStatus: string;
-  cartItems: { productName: string; image: string }[];
-}
+export default function AdminLogin() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const router = useRouter();
 
-const AdminDashboard = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [filter, setFilter] = useState("All");
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const data = await client.fetch(
-          `*[_type == "order"]{
-            _id, fullName, phone, email, address, city, zipCode, totalPrice,
-            discountedPrice, orderDate, orderStatus, cartItems[]->{ productName, image }
-          }`
-        );
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-      }
-    };
-    fetchOrders();
-  }, []);
-
-  const filteredOrders = filter === "All" ? orders : orders.filter(order => order.orderStatus === filter);
-
-  const handleDelete = async (orderId: string) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#FF5733",
-      cancelButtonColor: "#3498DB",
-      confirmButtonText: "Yes, delete it!",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      await client.delete(orderId);
-      setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
-      Swal.fire("Deleted!", "Your order has been deleted.", "success");
-    } catch (error) {
-      console.error("Error deleting order:", error);
-      Swal.fire("Error!", "Something went wrong while deleting.", "error");
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email === "anieeimran@gmail.com" && password === "aniee123") {
+      localStorage.setItem("isLoggedIn", "true");
+      router.push("/admin/dashboard");
+    } else {
+      alert("Invalid email or password");
     }
   };
 
   return (
-    <ProtectedRoute>
-          <div className="min-h-screen bg-gray-100 p-6">
-        <nav className="bg-purple-700 text-white p-4 rounded-lg shadow-md flex justify-between items-center">
-          <h2 className="text-xl font-bold">Admin Dashboard</h2>
-          <select
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="bg-white text-gray-800 p-2 rounded shadow"
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-500 to-indigo-600 p-4">
+      <div className="w-full max-w-md bg-white bg-opacity-20 backdrop-blur-md p-8 rounded-2xl shadow-lg border border-white border-opacity-30">
+        <h2 className="text-3xl font-bold text-center text-black mb-6">Admin Login</h2>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label className="block text-white font-medium mb-1">Email</label>
+            <input
+              type="email"
+              placeholder="Enter your email"
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg bg-white bg-opacity-20 text-black placeholder-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              value={email}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-white font-medium mb-1">Password</label>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg bg-white bg-opacity-20 text-black placeholder-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              value={password}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-yellow-400 text-gray-900 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition shadow-md"
           >
-            {["All", "pending", "processing", "delivered", "cancelled"].map(status => (
-              <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-            ))}
-          </select>
-        </nav>
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredOrders.map(order => (
-            <div key={order._id} className="bg-white p-4 shadow rounded-lg border-l-4 border-purple-500">
-              <h3 className="text-lg font-semibold text-gray-900">{order.fullName}</h3>
-              <p className="text-gray-600 text-sm">{new Date(order.orderDate).toLocaleDateString()}</p>
-              <p className="text-gray-900 font-bold mt-2">Total: ${order.totalPrice}</p>
-              <p className="text-green-700 font-bold">Discounted: ${order.discountedPrice}</p>
-              <span className={`px-2 py-1 rounded text-white text-sm mt-2 inline-block ${
-                order.orderStatus === "pending" ? "bg-yellow-600" :
-                order.orderStatus === "processing" ? "bg-blue-600" :
-                order.orderStatus === "delivered" ? "bg-green-600" : "bg-red-600"
-              }`}>
-                {order.orderStatus}
-              </span>
-
-              <div className="mt-4 flex space-x-2">
-                <button
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-800"
-                  onClick={() => handleDelete(order._id)}
-                >Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            Login
+          </button>
+        </form>
       </div>
-    </ProtectedRoute>
+    </div>
   );
-};
-
-export default AdminDashboard;
+}

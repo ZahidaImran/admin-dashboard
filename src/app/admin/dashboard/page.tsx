@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { client } from "@/sanity/lib/client";
+import Image from "next/image";
+import { urlFor } from "@/sanity/lib/image";
 import Swal from "sweetalert2";
 import ProtectedRoute from "@/app/components/protectedRoutes";
-import { FaBoxOpen, FaTrash, FaFilter } from "react-icons/fa";
 
 interface Order {
   _id: string;
@@ -18,12 +19,13 @@ interface Order {
   discountedPrice: number;
   orderDate: string;
   orderStatus: string;
-  cartItems: { productName: string; image: string }[];
+  cartItems: { productName: string; image?: string }[];
 }
 
 const AdminDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState("All");
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -44,14 +46,18 @@ const AdminDashboard = () => {
 
   const filteredOrders = filter === "All" ? orders : orders.filter(order => order.orderStatus === filter);
 
+  const toggleExpand = (orderId: string) => {
+    setExpandedOrder(prev => (prev === orderId ? null : orderId));
+  };
+
   const handleDelete = async (orderId: string) => {
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      confirmButtonColor: "#FF5733",
+      cancelButtonColor: "#3498DB",
       confirmButtonText: "Yes, delete it!",
     });
 
@@ -69,49 +75,64 @@ const AdminDashboard = () => {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen flex bg-gray-100">
-        {/* Sidebar */}
-        <aside className="w-64 bg-blue-700 text-white p-6 hidden md:block">
-          <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
-          <ul className="space-y-4">
-            <li className="cursor-pointer flex items-center gap-2 hover:text-gray-300">
-              <FaBoxOpen /> Orders
-            </li>
-          </ul>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Orders</h2>
-            <div className="flex items-center gap-2">
-              <FaFilter />
-              <select value={filter} onChange={e => setFilter(e.target.value)} className="border rounded p-2 bg-white">
-                {["All", "pending", "processing", "delivered", "cancelled"].map(status => (
-                  <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Order Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOrders.map(order => (
-              <div key={order._id} className="bg-white p-4 shadow-md rounded-lg">
-                <h3 className="font-semibold text-lg">{order.fullName}</h3>
-                <p className="text-sm text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</p>
-                <p className="mt-2 font-bold">Total: ${order.totalPrice}</p>
-                <p className="mt-1 text-sm">Discounted Price: ${order.discountedPrice}</p>
-                <p className="mt-1 text-sm">Status: {order.orderStatus}</p>
-                <div className="flex gap-2 mt-4">
-                  <button className="text-sm px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700 transition" onClick={() => handleDelete(order._id)}>
-                    <FaTrash /> Delete
-                  </button>
-                </div>
-              </div>
+      <div className="min-h-screen bg-gray-100 p-6">
+        <nav className="bg-purple-700 text-white p-4 rounded-lg shadow-md flex justify-between items-center">
+          <h2 className="text-xl font-bold">Admin Dashboard</h2>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="bg-white text-gray-800 p-2 rounded shadow"
+          >
+            {["All", "pending", "processing", "delivered", "cancelled"].map(status => (
+              <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
             ))}
-          </div>
-        </main>
+          </select>
+        </nav>
+
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOrders.map(order => (
+            <div key={order._id} className="bg-white p-4 shadow rounded-lg border-l-4 border-purple-500">
+              <div className="cursor-pointer" onClick={() => toggleExpand(order._id)}>
+                <h3 className="text-lg font-semibold text-gray-900">{order.fullName}</h3>
+                <p className="text-gray-600 text-sm">{new Date(order.orderDate).toLocaleDateString()}</p>
+                <p className="text-gray-900 font-bold mt-2">Total: ${order.totalPrice}</p>
+                <p className="text-green-700 font-bold">Discounted: ${order.discountedPrice}</p>
+                <span className={`px-2 py-1 rounded text-white text-sm mt-2 inline-block ${
+                  order.orderStatus === "pending" ? "bg-yellow-600" :
+                  order.orderStatus === "processing" ? "bg-blue-600" :
+                  order.orderStatus === "delivered" ? "bg-green-600" : "bg-red-600"
+                }`}>
+                  {order.orderStatus}
+                </span>
+              </div>
+
+              {expandedOrder === order._id && (
+                <div className="mt-4 border-t pt-4">
+                  <h4 className="text-lg font-semibold">Order Items</h4>
+                  {order.cartItems.map((item, index) => (
+                    <div key={index} className="flex items-center space-x-4 mt-2">
+                      {item.image ? (
+                        <Image src={urlFor(item.image).url()} alt={item.productName} width={50} height={50} className="rounded-sm" />
+                      ) : (
+                        <div className="w-[50px] h-[50px] bg-gray-300 flex items-center justify-center text-sm text-gray-700">
+                          No Image
+                        </div>
+                      )}
+                      <p className="text-gray-900 font-medium">{item.productName}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex space-x-2">
+                <button
+                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-800"
+                  onClick={() => handleDelete(order._id)}
+                >Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </ProtectedRoute>
   );
